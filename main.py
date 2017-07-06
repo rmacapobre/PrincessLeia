@@ -8,7 +8,13 @@ pygame.display.set_caption("Princesse Leia")
 
 black = (0, 0, 0)
 white = (255, 255, 255)
+yellow = (255, 255, 0)
 clock = pygame.time.Clock()
+
+pygame.font.init()
+comicSansMS = pygame.font.SysFont('FreeMono, Bold', 35)
+comicSansMS.set_bold(True)
+
 
 mf = pygame.image.load("images/mf.jpg")
 mf = pygame.transform.scale(mf, (500, 400))
@@ -55,6 +61,11 @@ while not done:
 
     screen.fill(black)
     screen.blit(mf, (0, 0))
+
+    msg = "x = " + str(x) + ", y = " + str(y)
+    bonjour = comicSansMS.render(msg, False, black)
+    screen.blit(bonjour, (23, 300))
+
 
     if (direction == pygame.K_DOWN):
         if (current == 1): screen.blit(leiaFront1, (x, y))
