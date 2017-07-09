@@ -1,21 +1,29 @@
+try:
+    import pygame_sdl2
+    pygame_sdl2.import_as_pygame()
+except ImportError:
+    pass
+
 import pygame
 import glob
 import math
 import random
 
 class Ewok:
-    def __init__(self, startx, starty):
+    def __init__(self, startx, starty, number = -1):
         self.x = startx
         self.y = starty
         self.angle = 0
         self.direction = pygame.K_DOWN
         self.saved = False
         self.missed = False
-        number = random.randint(0, 3)
+        if (number == -1):
+            number = random.randint(0, 4)
         if (number == 0): self.img =  pygame.image.load("images/ewok1.png")
         elif (number == 1): self.img = pygame.image.load("images/ewok2.png")
         elif (number == 2): self.img = pygame.image.load("images/ewok3.png")
         else: self.img =  pygame.image.load("images/ewok4.png")
+        self.type = number
 
     def move(self):
         number = random.randint(0, 9)
@@ -46,6 +54,7 @@ class EwokTower:
     def __init__(self):
         self.list = []
         self.reachDS = 0
+        self.win = False
     def add(self, ewok):
         count = len(self.list)
         if count == 0:
@@ -62,6 +71,8 @@ class EwokTower:
                 if (ewok.x <= 410):
                     self.reachDS += 15
                     self.list.append(ewok)
+                elif (ewok.x > 410):
+                    self.win = True
 
 
 class Person:
@@ -109,12 +120,32 @@ class Person:
         if (self.direction == pygame.K_UP): self.y -= 5
         if (self.direction == pygame.K_LEFT): self.x -= 10
         if (self.direction == pygame.K_RIGHT): self.x += 10
-        # Define limits
+        # Define limits for Princess Leia
         if self.x <= 10: self.x = 10
         if self.x >= 450: self.x = 450
         if self.y <= 330: self.y = 340
         if self.y >= 340: self.y = 340
 
+    def shift(self):
+        if (self.direction == pygame.K_LEFT): self.x -= 1
+        if (self.direction == pygame.K_RIGHT): self.x += 1
+        # Define limits for Darth Sidious
+        if self.x < 325: self.direction = pygame.K_RIGHT
+        if self.x > 400: self.direction = pygame.K_LEFT
+
+    def fall(self):
+        if (self.y >= 340): return
+        self.direction = pygame.K_DOWN
+        number = random.randint(0, 9)
+        if (number == 0): self.x -= 5
+        if (number == 1): self.x -= 10
+        if (number == 2): self.x += 5
+        if (number == 3): self.x += 10
+        if (number == 4): self.x -= 2
+        if (number == 5): self.x -= 7
+        if (number == 6): self.x += 2
+        if (number == 7): self.x += 7
+        self.y += 15
 
 # Entry point
 
@@ -128,24 +159,34 @@ yellow = (255, 255, 0)
 clock = pygame.time.Clock()
 
 pygame.font.init()
-comicSansMS = pygame.font.SysFont('Verdana', 15)
-comicSansMS.set_bold(True)
+verdana = pygame.font.SysFont('Verdana', 15)
+arial = pygame.font.SysFont('Arial', 15)
 
 mf = pygame.image.load("images/mf.jpg")
 mf = pygame.transform.scale(mf, (500, 400))
 
 darthSidius = Person(350, 60, "ds")
+darthSidius.direction = pygame.K_LEFT
 princesseLeia = Person(10, 350, "leia")
 
 fallingEwoks = []
 ewokTower = EwokTower()
 
 done = False
-pygame.mixer.music.load("sounds/femalefootstep.wav")
+
+#  Load when leia saves an ewok
+pygame.mixer.init()
+catchSound = pygame.mixer.Sound("sounds/gabrielaraujo.wav")
+
+# Play once
+pygame.mixer.music.load('sounds/littlerobotsoundfactory.mp3')
+pygame.mixer.music.play(1)
+
 direction = pygame.K_DOWN
 
 missed = 0
 saved = 0
+win = False
 
 while not done:
     for event in pygame.event.get():
@@ -162,17 +203,25 @@ while not done:
     screen.blit(mf, (0, 0))
 
     msg = "missed=" + str(missed)
-    bonjour = comicSansMS.render(msg, False, black)
-    screen.blit(bonjour, (23, 10))
+    screen.blit(arial.render(msg, False, white), (400, 330))
 
     msg = "saved=" + str(saved)
-    bonjour = comicSansMS.render(msg, False, black)
-    screen.blit(bonjour, (23, 20))
+    screen.blit(arial.render(msg, False, white), (400, 350))
+
+    lines = [
+        "Aidez la princesse Leia sauve les ewoks",
+        "tombantes d'une mort certaine ... "
+    ]
+    lineY = 15
+    for line in lines:
+        bonjour = verdana.render(line, False, black)
+        screen.blit(bonjour, (23, lineY))
+        lineY += 20
 
     number = random.randint(0, 99)
 
     count = len(fallingEwoks)
-    if (count <= 3):
+    if (count <= 5):
         if (number >= 0 and number <= 5):
             ewok = Ewok(100, 60)
             fallingEwoks.append(ewok)
@@ -186,18 +235,24 @@ while not done:
             fallingEwoks.append(ewok2)
 
     # Display all falling ewoks
-    for e in fallingEwoks:
-        e.display(screen)
-        e.move()
-        if (e.missed):
-            missed += 1
-            e.missed = False
+    if not ewokTower.win:
+        for e in fallingEwoks:
+            e.display(screen)
+            e.move()
+            if (e.missed):
+                missed += 1
+                e.missed = False
 
     # Display ewo tower
     for e in ewokTower.list:
         e.display(screen)
 
-    darthSidius.display(screen)
+    if not ewokTower.win:
+        darthSidius.display(screen)
+        darthSidius.shift()
+    else:
+        darthSidius.display(screen)
+        darthSidius.fall()
 
     princesseLeia.direction = direction
     princesseLeia.display(screen)
@@ -206,10 +261,11 @@ while not done:
     # Count saved
     for e in fallingEwoks:
         if abs(princesseLeia.x - e.x) <= 20 and abs(princesseLeia.y - e.y) <= 20 and e.saved == False:
-            savedEwok = Ewok(250, 60)
+            savedEwok = Ewok(250, 60, e.type)
             ewokTower.add(savedEwok)
             e.saved = True
             saved += 1
+            catchSound.play()
 
     # Count missed
     for e in fallingEwoks:
